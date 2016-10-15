@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/donutloop/command-pipeline.svg?branch=master)](https://travis-ci.org/donutloop/command-pipeline)
 
 # Command pipeline
 
@@ -14,6 +15,7 @@ Let's start with a trivial Hello World example:
 
     import (
         "github.com/donutloop/command-provider"
+        "bytes"
     )
 
     func main() {
