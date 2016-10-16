@@ -37,7 +37,7 @@ func (cp *CommandPipeline) Execute() (*bytes.Buffer, error) {
 	}
 
 	for index, command := range cp.commands {
-		go cp.convertToCommandWrapper(command, connectoren[index], connectoren[index+1], errChan)()
+		go cp.convertToCommandWrapper(commandWrapperParam{command, connectoren[index], connectoren[index+1], errChan})()
 	}
 
 	go cp.initialStart(connectoren[0])()
@@ -71,18 +71,25 @@ func (cp *CommandPipeline) Add(c ...Command) {
 	cp.commands = append(cp.commands, c...)
 }
 
-func (cp *CommandPipeline) Clear(c ...Command) {
+func (cp *CommandPipeline) Clear() {
 	cp.commands = []Command{}
 }
 
-func (cp *CommandPipeline) convertToCommandWrapper(c Command, in chan *bytes.Buffer, out chan *bytes.Buffer, errChan chan error) func() {
-	return func() {
-		input := <-in
+type commandWrapperParam struct {
+	command Command
+	input chan *bytes.Buffer
+	output chan *bytes.Buffer
+	err chan error
+}
 
-		if output, err := c(input); err != nil {
-			errChan <- err
+func (cp *CommandPipeline) convertToCommandWrapper(param commandWrapperParam) func() {
+	return func() {
+		input := <- param.input
+
+		if output, err := param.command(input); err != nil {
+			param.err <- err
 		} else {
-			out <- output
+			param.output <- output
 		}
 	}
 }
