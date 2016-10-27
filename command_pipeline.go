@@ -19,6 +19,18 @@ func New(input *bytes.Buffer, command ...Command) *CommandPipeline {
 	}
 }
 
+type connectorenWrapper struct {
+	Connectoren []chan *bytes.Buffer
+}
+
+func (cw *connectorenWrapper) getFirstConnector() chan *bytes.Buffer {
+	return cw.Connectoren[0]
+}
+
+func (cw *connectorenWrapper) getLastConnector() chan *bytes.Buffer{
+	return cw.Connectoren[len(cw.Connectoren) - 1]
+}
+
 func (cp *CommandPipeline) Execute() (*bytes.Buffer, error) {
 
 	if cp.input == nil {
@@ -31,36 +43,38 @@ func (cp *CommandPipeline) Execute() (*bytes.Buffer, error) {
 
 	errChan := make(chan error)
 
-	connectoren := cp.createConnectors(len(cp.commands) + 1)
+	cw := cp.createConnectors(len(cp.commands) + 1)
 
 	for index, command := range cp.commands {
-		go cp.convertToCommandWrapper(commandWrapperParam{command, connectoren[index], connectoren[index+1], errChan})()
+		go cp.convertToCommandWrapper(commandWrapperParam{command, cw.Connectoren[index], cw.Connectoren[index+1], errChan})()
 	}
 
-	go cp.initialStart(connectoren[0])()
+	go cp.initialStart(cw.getFirstConnector())()
 
 	var err error
 	var output *bytes.Buffer
 
 	select {
 	case err = <-errChan:
-	case output = <- connectoren[len(cp.commands)]:
+	case output = <- cw.getLastConnector():
 	}
 
-	cp.closeConnectors(connectoren)
+	cp.closeConnectors(cw.Connectoren)
 
 	return output, err
 }
 
-func (cp *CommandPipeline) createConnectors(commandCount int) []chan *bytes.Buffer {
+func (cp *CommandPipeline) createConnectors(commandCount int) *connectorenWrapper {
 
-	connectoren := make([]chan *bytes.Buffer, commandCount)
-
-	for index := 0; index < commandCount; index++ {
-		connectoren[index] = make(chan *bytes.Buffer)
+	cw := &connectorenWrapper{
+		Connectoren: make([]chan *bytes.Buffer, commandCount),
 	}
 
-	return connectoren
+	for index := 0; index < commandCount; index++ {
+		cw.Connectoren[index] = make(chan *bytes.Buffer)
+	}
+
+	return cw
 }
 
 func (cp *CommandPipeline) closeConnectors(connectoren []chan *bytes.Buffer) {
