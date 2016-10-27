@@ -14,7 +14,7 @@ Let's start with a trivial Hello World example:
     package main
 
     import (
-        "github.com/donutloop/command-provider"
+        "github.com/donutloop/command-pipeline"
         "bytes"
     )
 
@@ -45,8 +45,8 @@ Let's start with a trivial Hello World example:
         		buildCommand("D"),
         	)
         
-        	data, err := pipeline.Execute()
+        	data, _ := pipeline.Execute()
         
-        	data.String() //Output: HELLO WORLD
+        	print(data.String()) //Output: HELLO WORLD
     }
 ```
