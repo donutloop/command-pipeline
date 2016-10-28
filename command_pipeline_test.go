@@ -1,3 +1,6 @@
+// Copyright 2016 Marcel Edmund Franke. All rights reserved.
+// license that can be found in the LICENSE file.
+
 package command_pipeline_test
 
 import (
