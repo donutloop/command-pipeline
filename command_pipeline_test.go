@@ -5,8 +5,9 @@ package command_pipeline_test
 
 import (
 	"bytes"
-	"github.com/donutloop/command-pipeline"
 	"testing"
+
+	"github.com/donutloop/command-pipeline"
 )
 
 func TestCommandPipeline_Execute(t *testing.T) {
@@ -87,6 +88,28 @@ func TestCommandPipeline_Add(t *testing.T) {
 
 	if data.String() != expected {
 		t.Errorf("Expected \"%s\" got \"%s\"", expected, data.String())
+	}
+}
+
+func TestCommandPipeline_ClearAndCount(t *testing.T) {
+
+	buildCommand := func(letter string) func(input *bytes.Buffer) (*bytes.Buffer, error) {
+		return func(input *bytes.Buffer) (*bytes.Buffer, error) {
+
+			input.WriteString(letter)
+
+			return input, nil
+		}
+	}
+
+	firstInput := bytes.NewBufferString("H")
+
+	pipeline := command_pipeline.New(firstInput, buildCommand("E"), buildCommand("L"))
+
+	pipeline.Clear()
+
+	if 0 != pipeline.Count() {
+		t.Errorf("Expected \"%d\" got \"%s\"", 0, pipeline.Count())
 	}
 }
 

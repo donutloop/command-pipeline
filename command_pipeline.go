@@ -8,16 +8,20 @@ import (
 	"fmt"
 )
 
-type Command func(*bytes.Buffer) (*bytes.Buffer, error)
+// Execute is function that represent a Command for the command pipeline
+type Execute func(*bytes.Buffer) (*bytes.Buffer, error)
 
-type CommandPipeline struct {
-	commands    []Command
-	input       *bytes.Buffer
+type commandPipeline struct {
+	commands []Execute
+	input    *bytes.Buffer
 }
 
-func New(input *bytes.Buffer, command ...Command) *CommandPipeline {
-	return &CommandPipeline{
-		commands: append([]Command{}, command...),
+// New builds a new command pipeline
+// The parameter "Input" is a inital value for the command pipeline.
+// The parameters "command" are commands for the command pipline
+func New(input *bytes.Buffer, command ...Execute) *commandPipeline {
+	return &commandPipeline{
+		commands: append([]Execute{}, command...),
 		input:    input,
 	}
 }
@@ -30,11 +34,11 @@ func (cw *connectorenWrapper) getFirstConnector() chan *bytes.Buffer {
 	return cw.Connectoren[0]
 }
 
-func (cw *connectorenWrapper) getLastConnector() chan *bytes.Buffer{
-	return cw.Connectoren[len(cw.Connectoren) - 1]
+func (cw *connectorenWrapper) getLastConnector() chan *bytes.Buffer {
+	return cw.Connectoren[len(cw.Connectoren)-1]
 }
 
-func (cp *CommandPipeline) Execute() (*bytes.Buffer, error) {
+func (cp *commandPipeline) Execute() (*bytes.Buffer, error) {
 
 	if cp.input == nil {
 		return nil, fmt.Errorf("Input is missing (Value: %v)", cp.input)
@@ -59,7 +63,7 @@ func (cp *CommandPipeline) Execute() (*bytes.Buffer, error) {
 
 	select {
 	case err = <-errChan:
-	case output = <- cw.getLastConnector():
+	case output = <-cw.getLastConnector():
 	}
 
 	cp.closeConnectors(cw.Connectoren)
@@ -67,7 +71,7 @@ func (cp *CommandPipeline) Execute() (*bytes.Buffer, error) {
 	return output, err
 }
 
-func (cp *CommandPipeline) createConnectors(commandCount int) *connectorenWrapper {
+func (cp *commandPipeline) createConnectors(commandCount int) *connectorenWrapper {
 
 	cw := &connectorenWrapper{
 		Connectoren: make([]chan *bytes.Buffer, commandCount),
@@ -80,34 +84,38 @@ func (cp *CommandPipeline) createConnectors(commandCount int) *connectorenWrappe
 	return cw
 }
 
-func (cp *CommandPipeline) closeConnectors(connectoren []chan *bytes.Buffer) {
+func (cp *commandPipeline) closeConnectors(connectoren []chan *bytes.Buffer) {
 	for _, connector := range connectoren {
 		close(connector)
 	}
 }
 
-func (cp *CommandPipeline) initialStart(connector chan *bytes.Buffer) func() {
+func (cp *commandPipeline) initialStart(connector chan *bytes.Buffer) func() {
 	return func() {
 		connector <- cp.input
 	}
 }
 
-func (cp *CommandPipeline) Add(c ...Command) {
+func (cp *commandPipeline) Add(c ...Execute) {
 	cp.commands = append(cp.commands, c...)
 }
 
-func (cp *CommandPipeline) Clear() {
-	cp.commands = []Command{}
+func (cp *commandPipeline) Clear() {
+	cp.commands = []Execute{}
+}
+
+func (cp *commandPipeline) Count() int {
+	return len(cp.commands)
 }
 
 type commandWrapperParam struct {
-	command Command
+	command Execute
 	input   chan *bytes.Buffer
 	output  chan *bytes.Buffer
 	err     chan error
 }
 
-func (cp *CommandPipeline) convertToCommandWrapper(param commandWrapperParam) func() {
+func (cp *commandPipeline) convertToCommandWrapper(param commandWrapperParam) func() {
 	return func() {
 		input := <-param.input
 
